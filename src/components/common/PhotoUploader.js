@@ -6,6 +6,21 @@ import ErrorBoundary from './ErrorBoundary';
 import './PhotoUploader.css';
 
 /**
+ * Validates if the preview URL is safe (strictly a blob: URL)
+ * @param {string} url - The URL to validate
+ * @returns {boolean} True if safe
+ */
+const isSafePreviewUrl = (url) => {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'blob:';
+  } catch (e) {
+    return url.startsWith('blob:');
+  }
+};
+
+/**
  * Component for uploading photos for a problem
  * @param {number} climbNo - Problem number
  * @param {function} onClose - Function to call when closing the uploader
@@ -49,6 +64,11 @@ function PhotoUploader({ climbNo, onClose }) {
         }
 
         const newPreviewUrl = URL.createObjectURL(selectedFile);
+        if (!isSafePreviewUrl(newPreviewUrl)) {
+          setError('Security validation failed: Invalid preview URL generated.');
+          return;
+        }
+
         setPreviewUrl(newPreviewUrl);
         setFile(selectedFile);
         setError(null);
@@ -156,7 +176,7 @@ function PhotoUploader({ climbNo, onClose }) {
               />
             </div>
 
-            {previewUrl && (
+            {previewUrl && isSafePreviewUrl(previewUrl) && (
               <div className="preview">
                 <img src={previewUrl} alt="Preview" />
               </div>
