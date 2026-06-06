@@ -3,8 +3,17 @@ import { useApp } from '../../contexts/AppContext';
 import { useCompetition } from '../../contexts/CompetitionContext';
 import useExpandableRows from '../../hooks/useExpandableRows';
 import { getOrganizedLocations, getRecommendedProblems } from '../../utils/scoreCalculators';
+import {
+  DATE_SET_FILTER_DEFAULT,
+  PHOTOS_FILTER_DEFAULT,
+  isPointRangeValid,
+  matchesDateSetFilter,
+  matchesPhotosFilter,
+  matchesPointRangeFilter,
+  matchesTopsFilter,
+  parseNumberRangeBound,
+} from '../../utils/problemFilters';
 import { filterBySearchTerm } from '../../utils/searchFilters';
-import LocationFilter from '../common/LocationFilter';
 import PhotoIndicator from '../common/PhotoIndicator';
 import PhotoUploader from '../common/PhotoUploader';
 import PhotoViewer from '../common/PhotoViewer';
@@ -12,7 +21,36 @@ import SearchInput from '../common/SearchInput';
 import SendsSubTable from '../common/SendsSubTable';
 import SortableTable from '../common/SortableTable';
 import RankChangeIndicator from '../users/RankChangeIndicator';
+import ProblemsFilterBar from '../problems/ProblemsFilterBar';
 import './RecommendModal.css';
+
+const TOPS_FILTER_VALUES = ['all', 'hasTops', 'noTops'];
+const PHOTOS_FILTER_VALUES = ['all', 'hasPhotos', 'noPhotos'];
+const DATE_SET_FILTER_VALUES = [
+  'all',
+  'last7Days',
+  'last30Days',
+  'olderThan30Days',
+];
+const RECOMMEND_TOPS_FILTER_DEFAULT = 'all';
+
+const getSavedValue = (storageKey, defaultValue) => {
+  try {
+    return localStorage.getItem(storageKey) || defaultValue;
+  } catch (error) {
+    console.error('Error accessing localStorage:', error);
+    return defaultValue;
+  }
+};
+
+const getSavedEnumValue = (storageKey, defaultValue, allowedValues) => {
+  const savedValue = getSavedValue(storageKey, defaultValue);
+  return allowedValues.includes(savedValue) ? savedValue : defaultValue;
+};
+
+const hasPointRangeFilter = (pointsMin, pointsMax) =>
+  parseNumberRangeBound(pointsMin) !== null ||
+  parseNumberRangeBound(pointsMax) !== null;
 
 /**
  * Modal component for recommending problems to a user
@@ -67,8 +105,8 @@ function RecommendModal({ onClose, user }) {
       return savedValue !== null
         ? savedValue === 'true'
         : (currentUserIndex === 0 || !hasRankIncreasingProblems); // Default value
-    } catch (e) {
-      console.error('Error accessing localStorage:', e);
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
       return currentUserIndex === 0 || !hasRankIncreasingProblems;
     }
   });
@@ -77,8 +115,8 @@ function RecommendModal({ onClose, user }) {
     try {
       const savedValue = localStorage.getItem('recommendModal.sortByOverallTops');
       return savedValue !== null ? savedValue === 'true' : false; // Default to false
-    } catch (e) {
-      console.error('Error accessing localStorage:', e);
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
       return false;
     }
   });
@@ -86,8 +124,8 @@ function RecommendModal({ onClose, user }) {
   const [searchTerm, setSearchTerm] = useState(() => {
     try {
       return localStorage.getItem('recommendModal.searchTerm') || '';
-    } catch (e) {
-      console.error('Error accessing localStorage:', e);
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
       return '';
     }
   });
@@ -99,45 +137,123 @@ function RecommendModal({ onClose, user }) {
       } else {
         localStorage.removeItem('recommendModal.searchTerm');
       }
-    } catch (e) {
-      console.error('Error saving search term to localStorage:', e);
+    } catch (error) {
+      console.error('Error saving search term to localStorage:', error);
     }
   }, [searchTerm]);
 
   useEffect(() => {
     try {
       localStorage.setItem('recommendModal.showNonRankingProblems', showNonRankingProblems.toString());
-    } catch (e) {
-      console.error('Error saving to localStorage:', e);
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
     }
   }, [showNonRankingProblems]);
 
   useEffect(() => {
     try {
       localStorage.setItem('recommendModal.sortByOverallTops', sortByOverallTops.toString());
-    } catch (e) {
-      console.error('Error saving to localStorage:', e);
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
     }
   }, [sortByOverallTops]);
 
   const [selectedLocation, setSelectedLocation] = useState(() => {
     try {
       return localStorage.getItem('recommendModal.selectedLocation') || '';
-    } catch (e) {
-      console.error('Error accessing localStorage:', e);
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
       return '';
     }
   });
 
-  // Handler to update selectedLocation and save to localStorage
-  const handleLocationChange = (location) => {
-    setSelectedLocation(location);
+  const [pointsMin, setPointsMin] = useState(() =>
+    getSavedValue('recommendModal.pointsMin', '')
+  );
+  const [pointsMax, setPointsMax] = useState(() =>
+    getSavedValue('recommendModal.pointsMax', '')
+  );
+  const [topsFilter, setTopsFilter] = useState(() =>
+    getSavedEnumValue(
+      'recommendModal.topsFilter',
+      RECOMMEND_TOPS_FILTER_DEFAULT,
+      TOPS_FILTER_VALUES
+    )
+  );
+  const [photosFilter, setPhotosFilter] = useState(() =>
+    getSavedEnumValue(
+      'recommendModal.photosFilter',
+      PHOTOS_FILTER_DEFAULT,
+      PHOTOS_FILTER_VALUES
+    )
+  );
+  const [dateSetFilter, setDateSetFilter] = useState(() =>
+    getSavedEnumValue(
+      'recommendModal.dateSetFilter',
+      DATE_SET_FILTER_DEFAULT,
+      DATE_SET_FILTER_VALUES
+    )
+  );
+
+  useEffect(() => {
     try {
-      localStorage.setItem('recommendModal.selectedLocation', location);
-    } catch (e) {
-      console.error('Error saving to localStorage:', e);
+      if (selectedLocation) {
+        localStorage.setItem('recommendModal.selectedLocation', selectedLocation);
+      } else {
+        localStorage.removeItem('recommendModal.selectedLocation');
+      }
+    } catch (error) {
+      console.error('Error saving location to localStorage:', error);
     }
-  };
+  }, [selectedLocation]);
+
+  useEffect(() => {
+    try {
+      if (pointsMin) {
+        localStorage.setItem('recommendModal.pointsMin', pointsMin);
+      } else {
+        localStorage.removeItem('recommendModal.pointsMin');
+      }
+    } catch (error) {
+      console.error('Error saving minimum points filter:', error);
+    }
+  }, [pointsMin]);
+
+  useEffect(() => {
+    try {
+      if (pointsMax) {
+        localStorage.setItem('recommendModal.pointsMax', pointsMax);
+      } else {
+        localStorage.removeItem('recommendModal.pointsMax');
+      }
+    } catch (error) {
+      console.error('Error saving maximum points filter:', error);
+    }
+  }, [pointsMax]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('recommendModal.topsFilter', topsFilter);
+    } catch (error) {
+      console.error('Error saving tops filter:', error);
+    }
+  }, [topsFilter]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('recommendModal.photosFilter', photosFilter);
+    } catch (error) {
+      console.error('Error saving photos filter:', error);
+    }
+  }, [photosFilter]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('recommendModal.dateSetFilter', dateSetFilter);
+    } catch (error) {
+      console.error('Error saving date set filter:', error);
+    }
+  }, [dateSetFilter]);
 
   // State for photo viewer and uploader
   const [selectedPhotoClimbNo, setSelectedPhotoClimbNo] = useState(null);
@@ -166,23 +282,74 @@ function RecommendModal({ onClose, user }) {
     selectedLocation
   );
 
-  // Filter problems by search term (name/grade)
-  const recommendedProblems = useMemo(() => {
-    if (!searchTerm) return allRecommendedProblems;
+  const pointsRangeIsValid = isPointRangeValid(pointsMin, pointsMax);
+  const topsFilterScope = sortByOverallTops ? undefined : user.category;
 
-    return allRecommendedProblems.filter(problem => {
+  // Filter problems by pill filters and search term (name/grade)
+  const recommendedProblems = useMemo(() => {
+    let filteredProblems = allRecommendedProblems;
+
+    if (hasPointRangeFilter(pointsMin, pointsMax) && pointsRangeIsValid) {
+      filteredProblems = filteredProblems.filter((problem) =>
+        matchesPointRangeFilter(problem, pointsMin, pointsMax)
+      );
+    }
+
+    filteredProblems = filteredProblems.filter((problem) =>
+      matchesTopsFilter(problem, topsFilter, topsFilterScope)
+    );
+
+    filteredProblems = filteredProblems.filter((problem) =>
+      matchesPhotosFilter(problem, photosFilter, problemPhotos)
+    );
+
+    filteredProblems = filteredProblems.filter((problem) =>
+      matchesDateSetFilter(problem, dateSetFilter)
+    );
+
+    if (!searchTerm) return filteredProblems;
+
+    return filteredProblems.filter(problem => {
       // Search in both problem number and marking (which contains name/grade)
       const climbNoMatch = String(problem.climbNo).includes(searchTerm);
       const markingMatch = filterBySearchTerm(problem, searchTerm, 'marking');
 
       return climbNoMatch || markingMatch;
     });
-  }, [allRecommendedProblems, searchTerm]);
+  }, [
+    allRecommendedProblems,
+    pointsMin,
+    pointsMax,
+    pointsRangeIsValid,
+    topsFilter,
+    topsFilterScope,
+    photosFilter,
+    problemPhotos,
+    dateSetFilter,
+    searchTerm,
+  ]);
 
   // Calculate points needed for next rank
   const pointsNeededForNextRank = currentUserIndex > 0
     ? categoryUsers[currentUserIndex - 1].total - user.total
     : 0;
+
+  const hasActiveFilters = Boolean(
+    selectedLocation ||
+      hasPointRangeFilter(pointsMin, pointsMax) ||
+      topsFilter !== RECOMMEND_TOPS_FILTER_DEFAULT ||
+      photosFilter !== PHOTOS_FILTER_DEFAULT ||
+      dateSetFilter !== DATE_SET_FILTER_DEFAULT
+  );
+
+  const resetFilters = () => {
+    setSelectedLocation('');
+    setPointsMin('');
+    setPointsMax('');
+    setTopsFilter(RECOMMEND_TOPS_FILTER_DEFAULT);
+    setPhotosFilter(PHOTOS_FILTER_DEFAULT);
+    setDateSetFilter(DATE_SET_FILTER_DEFAULT);
+  };
 
   // Define columns for the sortable table
   const columns = useMemo(() => {
@@ -288,10 +455,23 @@ function RecommendModal({ onClose, user }) {
               />
               Use overall tops instead of category tops
             </label>
-            <LocationFilter
+            <ProblemsFilterBar
               locationGroups={locationGroups}
               selectedLocation={selectedLocation}
-              onLocationChange={handleLocationChange}
+              onLocationChange={setSelectedLocation}
+              pointsMin={pointsMin}
+              pointsMax={pointsMax}
+              onPointsMinChange={setPointsMin}
+              onPointsMaxChange={setPointsMax}
+              topsFilter={topsFilter}
+              defaultTopsFilter={RECOMMEND_TOPS_FILTER_DEFAULT}
+              onTopsFilterChange={setTopsFilter}
+              photosFilter={photosFilter}
+              onPhotosFilterChange={setPhotosFilter}
+              dateSetFilter={dateSetFilter}
+              onDateSetFilterChange={setDateSetFilter}
+              onResetFilters={resetFilters}
+              hasActiveFilters={hasActiveFilters}
             />
           </div>
 

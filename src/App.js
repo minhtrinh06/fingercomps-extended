@@ -1,5 +1,6 @@
 import React from "react";
 import CategorySelector from './components/common/CategorySelector';
+import DisplayControls from "./components/common/DisplayControls";
 import ViewToggle from "./components/common/ViewToggle";
 import CompetitionSelector from "./components/competitions/CompetitionSelector";
 import RecommendModal from "./components/recommendations/RecommendModal";
@@ -53,6 +54,7 @@ function AppContent() {
             <HighlightedProblemsProvider>
               <div className="filters">
                 <CategorySelector />
+                {focusView === 'problems' && <DisplayControls />}
               </div>
 
               {focusView === 'user' ? (
