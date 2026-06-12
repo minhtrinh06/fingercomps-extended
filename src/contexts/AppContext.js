@@ -110,6 +110,7 @@ export const AppProvider = ({ children }) => {
   const [limitScores, setLimitScores] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [recommendModalUser, setRecommendModalUser] = useState(null);
+  const [whatIfModalUser, setWhatIfModalUser] = useState(null);
 
   useEffect(() => {
     if (focusView !== 'problems') return;
@@ -288,6 +289,7 @@ export const AppProvider = ({ children }) => {
     limitScores,
     isMobile,
     recommendModalUser,
+    whatIfModalUser,
     loading,
     error,
 
@@ -299,6 +301,7 @@ export const AppProvider = ({ children }) => {
     setShowOverallTopsFlashes,
     setLimitScores,
     setRecommendModalUser,
+    setWhatIfModalUser,
     handleCompetitionChange,
   };
 

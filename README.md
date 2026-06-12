@@ -4,6 +4,19 @@
 
 I built this app to complement the amazing [FingerComps](https://fingercomps.com/) product and enable learning and growth for all fellow competition climbers.
 
+This repository is a fork of [latiosu/fingercomps-extended](https://github.com/latiosu/fingercomps-extended) that adds:
+
+- Filtering pills for narrowing competitor results by location, score range, tops, photos, and set date.
+- A what-if sandbox for adding theoretical tops and previewing score or rank changes without affecting real competition results.
+
+**Filtering pills**
+
+![Filtering pills screenshot](docs/images/filtering-pills.png)
+
+**What-if sandbox**
+
+![What-if sandbox screenshot](docs/images/what-if-sandbox.png)
+
 **Features**
 - See recommended pumpfest problems per user
 - See problem statistics for a competition
