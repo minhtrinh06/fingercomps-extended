@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { useCompetition } from '../../contexts/CompetitionContext';
+import { useSandbox } from '../../contexts/SandboxContext';
 import useExpandableRows from '../../hooks/useExpandableRows';
 import { getOrganizedLocations, getRecommendedProblems } from '../../utils/scoreCalculators';
 import {
@@ -23,6 +24,7 @@ import SortableTable from '../common/SortableTable';
 import RankChangeIndicator from '../users/RankChangeIndicator';
 import ProblemsFilterBar from '../problems/ProblemsFilterBar';
 import './RecommendModal.css';
+import '../sandbox/Sandbox.css';
 
 const TOPS_FILTER_VALUES = ['all', 'hasTops', 'noTops'];
 const PHOTOS_FILTER_VALUES = ['all', 'hasPhotos', 'noPhotos'];
@@ -53,13 +55,17 @@ const hasPointRangeFilter = (pointsMin, pointsMax) =>
   parseNumberRangeBound(pointsMax) !== null;
 
 /**
- * Modal component for recommending problems to a user
+ * Modal component for recommending problems to a user.
+ * In sandbox mode the same view doubles as the what-if editor: recommendations
+ * are computed against the theoretical overlay and each problem gets an
+ * add-a-send button.
  * @param {Object} props - Component props
  * @param {Function} props.onClose - Function to call when the modal is closed
  * @param {Object} props.user - User to recommend problems for
+ * @param {boolean} props.sandboxMode - Whether to act as the what-if sandbox editor
  * @returns {JSX.Element} RecommendModal component
  */
-function RecommendModal({ onClose, user }) {
+function RecommendModal({ onClose, user, sandboxMode = false }) {
   const { isMobile } = useApp();
   const {
     problems,
@@ -68,17 +74,34 @@ function RecommendModal({ onClose, user }) {
     userTableData,
     problemPhotos
   } = useCompetition();
+  const {
+    sandboxUserTableData,
+    sandboxQualificationScores,
+    theoreticalScores,
+    addTheoreticalTops,
+    removeTheoreticalTop,
+  } = useSandbox();
 
   const { expandedRows, toggleRow } = useExpandableRows();
 
+  const [addAsFlash, setAddAsFlash] = useState(false);
+
+  // In sandbox mode, work against the theoretical overlay so points/rank
+  // predictions update live as what-if sends are added
+  const effectiveUserTableData = sandboxMode ? sandboxUserTableData : userTableData;
+  const effectiveScores = sandboxMode ? sandboxQualificationScores : qualificationScores;
+  const effectiveUser = sandboxMode
+    ? (sandboxUserTableData.find(u => u.competitorNo === user.competitorNo) || user)
+    : user;
+
   // Get category users and current user's rank
-  const categoryUsers = userTableData.filter(u => u.category === user.category);
+  const categoryUsers = effectiveUserTableData.filter(u => u.category === user.category);
   const currentUserIndex = categoryUsers.findIndex(u => u.competitorNo === user.competitorNo);
 
   // Check if there are any problems that increase rank
   const hasRankIncreasingProblems = useMemo(() => {
     // Get user's scores
-    const userScores = qualificationScores[user.competitorNo] || [];
+    const userScores = effectiveScores[user.competitorNo] || [];
 
     // Get category data
     const category = categories[user.category];
@@ -87,7 +110,7 @@ function RecommendModal({ onClose, user }) {
     const allRecommendedProblems = getRecommendedProblems(
       problems,
       userScores,
-      user,
+      effectiveUser,
       categoryUsers,
       category,
       false, // sortByOverallTops
@@ -97,7 +120,7 @@ function RecommendModal({ onClose, user }) {
 
     // Check if any problem increases rank
     return allRecommendedProblems.some(problem => problem.rankImprovement > 0);
-  }, [problems, qualificationScores, user, categoryUsers, categories]);
+  }, [problems, effectiveScores, user, effectiveUser, categoryUsers, categories]);
 
   const [showNonRankingProblems, setShowNonRankingProblems] = useState(() => {
     try {
@@ -260,7 +283,7 @@ function RecommendModal({ onClose, user }) {
   const [showPhotoUploader, setShowPhotoUploader] = useState(false);
 
   // Get user's scores
-  const userScores = qualificationScores[user.competitorNo] || [];
+  const userScores = effectiveScores[user.competitorNo] || [];
 
   // Get category data
   const category = categories[user.category];
@@ -270,16 +293,18 @@ function RecommendModal({ onClose, user }) {
     return getOrganizedLocations(problems);
   }, [problems]);
 
-  // Get recommended problems
+  // Get recommended problems. In sandbox mode, show every unsent problem so
+  // any climb can be added as a what-if send.
   const allRecommendedProblems = getRecommendedProblems(
     problems,
     userScores,
-    user,
+    effectiveUser,
     categoryUsers,
     category,
     sortByOverallTops,
-    showNonRankingProblems,
-    selectedLocation
+    sandboxMode || showNonRankingProblems,
+    selectedLocation,
+    sandboxMode
   );
 
   const pointsRangeIsValid = isPointRangeValid(pointsMin, pointsMax);
@@ -331,7 +356,7 @@ function RecommendModal({ onClose, user }) {
 
   // Calculate points needed for next rank
   const pointsNeededForNextRank = currentUserIndex > 0
-    ? categoryUsers[currentUserIndex - 1].total - user.total
+    ? categoryUsers[currentUserIndex - 1].total - effectiveUser.total
     : 0;
 
   const hasActiveFilters = Boolean(
@@ -410,9 +435,27 @@ function RecommendModal({ onClose, user }) {
         label: `${sortByOverallTops ? "Overall" : (user.category || "Category")} Tops`,
         sortable: true,
         render: (problem) => getTopCount(problem)
-      }
+      },
+      // What-if column: add a theoretical send for this problem
+      ...(sandboxMode ? [{
+        key: 'whatIf',
+        label: 'What-if',
+        sortable: false,
+        render: (problem) => (
+          <button
+            className="sandbox-add-top-btn"
+            title={`Add a theoretical ${addAsFlash ? 'flash' : 'top'} of problem ${problem.climbNo}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              addTheoreticalTops([user.competitorNo], [problem.climbNo], addAsFlash);
+            }}
+          >
+            ➕ {addAsFlash ? 'Flash' : 'Top'}
+          </button>
+        )
+      }] : [])
     ]
-  }, [isMobile, problemPhotos, sortByOverallTops, user.category]);
+  }, [isMobile, problemPhotos, sortByOverallTops, user.category, user.competitorNo, sandboxMode, addAsFlash, addTheoreticalTops]);
 
   // Render expanded content for a problem
   const renderExpandedContent = (problem) => (
@@ -434,19 +477,26 @@ function RecommendModal({ onClose, user }) {
     }}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Recommended Problems for {user.name}</h2>
+          <h2>
+            {sandboxMode
+              ? `🧪 What-if Sends for ${user.name}`
+              : `Recommended Problems for ${user.name}`}
+          </h2>
           <button onClick={onClose}>&times;</button>
         </div>
         <div className="modal-body">
           <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                checked={showNonRankingProblems}
-                onChange={(e) => setShowNonRankingProblems(e.target.checked)}
-              />
-              Show problems that don't change rank
-            </label>
+            {/* Sandbox mode always shows all problems, so the filter is hidden */}
+            {!sandboxMode && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={showNonRankingProblems}
+                  onChange={(e) => setShowNonRankingProblems(e.target.checked)}
+                />
+                Show problems that don't change rank
+              </label>
+            )}
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
                 type="checkbox"
@@ -455,6 +505,16 @@ function RecommendModal({ onClose, user }) {
               />
               Use overall tops instead of category tops
             </label>
+            {sandboxMode && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={addAsFlash}
+                  onChange={(e) => setAddAsFlash(e.target.checked)}
+                />
+                Add what-if sends as flashes
+              </label>
+            )}
             <ProblemsFilterBar
               locationGroups={locationGroups}
               selectedLocation={selectedLocation}
@@ -478,6 +538,29 @@ function RecommendModal({ onClose, user }) {
           {currentUserIndex > 0 && (
             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
               <strong>{pointsNeededForNextRank} points</strong> till next rank (#{currentUserIndex})
+            </div>
+          )}
+
+          {/* Current what-if sends for this competitor */}
+          {sandboxMode && (theoreticalScores[user.competitorNo]?.length > 0) && (
+            <div className="sandbox-modal-summary">
+              <strong>
+                🧪 {theoreticalScores[user.competitorNo].length} what-if send
+                {theoreticalScores[user.competitorNo].length !== 1 ? 's' : ''}:
+              </strong>
+              {theoreticalScores[user.competitorNo].map(score => (
+                <span key={score.climbNo} className="sandbox-send-chip">
+                  #{score.climbNo} {problems[score.climbNo]?.marking}
+                  {score.flashed ? ' ⚡' : ''}
+                  <button
+                    className="sandbox-remove-btn"
+                    title="Remove this what-if send"
+                    onClick={() => removeTheoreticalTop(user.competitorNo, score.climbNo)}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
             </div>
           )}
 
@@ -506,6 +589,14 @@ function RecommendModal({ onClose, user }) {
               <strong>How does this work?</strong><br/>
               Recommended problems are sorted by most tops, then greatest rank change, then most points.
               Clicking a row will show other competitors who have topped that problem.
+              {sandboxMode && (
+                <>
+                  <br/>
+                  Pressing ➕ adds a theoretical send for {user.name} — rankings and the
+                  numbers above update instantly, and the problem moves out of this list
+                  into their what-if sends. Nothing is saved to the real competition.
+                </>
+              )}
             </p>
           </div>
         </div>

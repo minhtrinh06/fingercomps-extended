@@ -12,6 +12,7 @@ import LoadingProgressBar from "./LoadingProgressBar";
  * @param {Function} props.onRowClick - Function to call when a row is clicked
  * @param {Function} props.renderExpandedContent - Function to render expanded content
  * @param {Set} props.expandedRows - Set of expanded row IDs
+ * @param {Function} props.rowClassName - Optional function returning a class name for a row
  * @param {boolean} props.loading - Whether the table is loading
  * @param {number} props.loadingProgress - Loading progress percentage (0-100)
  * @param {boolean} props.partialDataAvailable - Whether partial data is available for display
@@ -26,6 +27,7 @@ function SortableTable({
   onRowClick,
   renderExpandedContent,
   expandedRows = new Set(),
+  rowClassName,
   loading = false,
   loadingProgress = 0,
   partialDataAvailable = false,
@@ -93,6 +95,7 @@ function SortableTable({
             return (
               <React.Fragment key={item[rowKey]}>
                 <tr
+                  className={rowClassName ? rowClassName(item) : undefined}
                   onClick={() => onRowClick && onRowClick(item[rowKey])}
                   style={{ cursor: onRowClick ? "pointer" : "default" }}
                 >
