@@ -36,7 +36,8 @@ function SandboxModal({ onClose }) {
         if (!problemSearch) return true;
         const term = problemSearch.toLowerCase();
         return String(problem.climbNo).includes(problemSearch)
-          || (problem.marking || '').toLowerCase().includes(term);
+          || (problem.marking || '').toLowerCase().includes(term)
+          || (problem.station || '').toLowerCase().includes(term);
       })
       .sort((a, b) => b.score - a.score);
   }, [problems, problemSearch]);
@@ -153,6 +154,7 @@ function SandboxModal({ onClose }) {
                       />
                       <span>#{problem.climbNo} {problem.marking}</span>
                       <span className="sandbox-option-detail">
+                        {problem.station ? `${problem.station} · ` : ''}
                         {problem.score} pts
                       </span>
                     </label>

@@ -292,6 +292,12 @@ function ProblemsTable() {
         sortable: true,
       },
       {
+        key: "station",
+        label: "Location",
+        sortable: true,
+        render: (item) => item.station || "-",
+      },
+      {
         key: "score",
         label: "Points",
         sortable: true,

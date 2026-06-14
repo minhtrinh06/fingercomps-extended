@@ -390,6 +390,7 @@ function RecommendModal({ onClose, user, sandboxMode = false }) {
         key: 'climbNo',
         label: `Problem${!isMobile ? " No." : ""}`,
         sortable: true,
+        className: 'recommend-problem-col',
         render: (problem) => (
           <span>
             {problem.climbNo}
@@ -409,23 +410,36 @@ function RecommendModal({ onClose, user, sandboxMode = false }) {
       {
         key: 'marking',
         label: `Name${!isMobile ? "/Grade" : ""}`,
-        sortable: true
+        sortable: true,
+        className: 'recommend-name-col'
       },
-      ...(isMobile ? [] : [{
+      {
+        key: 'station',
+        label: 'Location',
+        sortable: true,
+        className: 'recommend-location-col',
+        render: (problem) => problem.station || '-'
+      },
+      {
         key: 'score',
         label: 'Points',
-        sortable: true
-      }]),
-      {
-        key: 'additionalPoints',
-        label: `${!isMobile ? "Additional " : ""}Points`,
         sortable: true,
-        render: (problem) => `+${problem.additionalPoints}`
+        className: 'recommend-points-col',
+        render: (problem) => (
+          <span className="recommend-points-cell">
+            <span>{problem.score}</span>
+            {' '}
+            <span className="recommend-additional-points">
+              (+{problem.additionalPoints})
+            </span>
+          </span>
+        )
       },
       {
         key: 'rankImprovement',
         label: 'Rank Change',
         sortable: true,
+        className: 'recommend-rank-col',
         render: (problem) => (
           <RankChangeIndicator change={problem.rankImprovement} />
         )
@@ -434,6 +448,7 @@ function RecommendModal({ onClose, user, sandboxMode = false }) {
         key: 'tops',
         label: `${sortByOverallTops ? "Overall" : (user.category || "Category")} Tops`,
         sortable: true,
+        className: 'recommend-tops-col',
         render: (problem) => getTopCount(problem)
       },
       // What-if column: add a theoretical send for this problem
@@ -441,6 +456,7 @@ function RecommendModal({ onClose, user, sandboxMode = false }) {
         key: 'whatIf',
         label: 'What-if',
         sortable: false,
+        className: 'recommend-whatif-col',
         render: (problem) => (
           <button
             className="sandbox-add-top-btn"

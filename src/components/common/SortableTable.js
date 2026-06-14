@@ -48,7 +48,9 @@ function SortableTable({
           <thead className="tableHeader">
             <tr>
               {columns.map((column) => (
-                <th key={column.key}>{column.label}</th>
+                <th key={column.key} className={column.className}>
+                  {column.label}
+                </th>
               ))}
             </tr>
           </thead>
@@ -73,6 +75,7 @@ function SortableTable({
           {columns.map((column) => (
             <th
               key={column.key}
+              className={column.className}
               onClick={() =>
                 column.sortable !== false && requestSort(column.key)
               }
@@ -100,7 +103,10 @@ function SortableTable({
                   style={{ cursor: onRowClick ? "pointer" : "default" }}
                 >
                   {columns.map((column) => (
-                    <td key={`${item[rowKey]}-${column.key}`}>
+                    <td
+                      key={`${item[rowKey]}-${column.key}`}
+                      className={column.className}
+                    >
                       {column.render ? column.render(item) : item[column.key]}
                     </td>
                   ))}
