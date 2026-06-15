@@ -1,13 +1,13 @@
 # FingerComps+
 
-**FingerComps+** is a fan-made web application that lets climbing competitors see each others scores more deeply. The site is live at: [https://fingercomps.plus](https://fingercomps.plus)
-
-I built this app to complement the amazing [FingerComps](https://fingercomps.com/) product and enable learning and growth for all fellow competition climbers.
+**FingerComps+** is a fan-made web application that lets climbing competitors see each others scores more deeply. This fork is live at [https://fingercomps-extended.vercel.app/](https://fingercomps-extended.vercel.app/).
 
 This repository is a fork of [latiosu/fingercomps-extended](https://github.com/latiosu/fingercomps-extended) that adds:
 
 - Filtering pills for narrowing competitor results by location, score range, tops, photos, and set date.
 - A what-if sandbox for adding theoretical tops and previewing score or rank changes without affecting real competition results.
+- Location column to problem tables.
+- "Lazy-loading" optimisation.
 
 **Filtering pills**
 
