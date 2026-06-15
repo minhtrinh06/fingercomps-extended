@@ -37,6 +37,8 @@ function UserTable({ onRecommendClick, searchTerm, setSearchTerm }) {
     categories,
     competitionId,
     loading,
+    backgroundLoading,
+    fullDataLoaded,
     loadingProgress,
     partialDataAvailable
   } = useCompetition();
@@ -127,6 +129,15 @@ function UserTable({ onRecommendClick, searchTerm, setSearchTerm }) {
       }));
     }
 
+    if (!fullDataLoaded && !sandboxMode) {
+      return baseData.map(user => ({
+        ...user,
+        rankChange: null,
+        previousRank: null,
+        scoreChange: null
+      }));
+    }
+
     if (!rankChanges.length) return baseData;
 
     return baseData.map(user => {
@@ -138,7 +149,14 @@ function UserTable({ onRecommendClick, searchTerm, setSearchTerm }) {
         scoreChange: rankChange ? rankChange.scoreChange : 0
       };
     });
-  }, [baseData, userTableData, rankChanges, sandboxMode, theoreticalTopsCount]);
+  }, [
+    baseData,
+    userTableData,
+    rankChanges,
+    sandboxMode,
+    theoreticalTopsCount,
+    fullDataLoaded,
+  ]);
 
   // Memoize filtered data to avoid recalculation on every render
   const filteredData = useMemo(() => {
@@ -363,7 +381,7 @@ function UserTable({ onRecommendClick, searchTerm, setSearchTerm }) {
               ? 'sandbox-modified-row'
               : undefined
           )}
-          loading={loading}
+          loading={loading || backgroundLoading}
           loadingProgress={loadingProgress}
           partialDataAvailable={partialDataAvailable}
           emptyMessage={selectedCategory ? "No users in this category" : "No users available"}

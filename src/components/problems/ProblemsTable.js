@@ -107,6 +107,8 @@ function ProblemsTable() {
     categoryTops,
     problems,
     loading,
+    backgroundLoading,
+    fullDataLoaded,
     loadingProgress,
     partialDataAvailable,
     countCompetitors,
@@ -322,6 +324,10 @@ function ProblemsTable() {
           label: "Overall Tops",
           sortable: true,
           render: (item) => {
+            if (!fullDataLoaded) {
+              return <span title="Overall stats loading">-</span>;
+            }
+
             if (!item[TOP_COLUMN_KEY]) return <span>-</span>;
 
             // const totalTops = Object.values(item.stats).reduce(
@@ -345,6 +351,10 @@ function ProblemsTable() {
           label: "Overall Flashes",
           sortable: true,
           render: (item) => {
+            if (!fullDataLoaded) {
+              return <span title="Overall stats loading">-</span>;
+            }
+
             if (!item[FLASH_COLUMN_KEY]) return <span>-</span>;
 
             // const totalFlashes = Object.values(item.stats).reduce(
@@ -390,6 +400,7 @@ function ProblemsTable() {
     showOverallTopsFlashes,
     showRawCounts,
     categories,
+    fullDataLoaded,
   ]);
 
   // Filter and prepare problems data
@@ -562,7 +573,7 @@ function ProblemsTable() {
           onRowClick={(id) => toggleRow(id)}
           renderExpandedContent={renderExpandedContent}
           expandedRows={expandedRows}
-          loading={loading}
+          loading={loading || backgroundLoading}
           loadingProgress={loadingProgress}
           partialDataAvailable={partialDataAvailable}
           emptyMessage="No problems available"
